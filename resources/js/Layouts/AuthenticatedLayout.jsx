@@ -2,6 +2,7 @@ import React from "react";
 import { Head, usePage } from "@inertiajs/react";
 import Sidebar from "@/Components/Sidebar";
 import Header from "@/Components/Header";
+import FlashMessage from "@/Components/FlashMessage";
 
 const GRADIENT_HEADER = "linear-gradient(to right, #3B84FF, #6271FF)";
 const GRADIENT_SIDEBAR = "linear-gradient(to bottom, #3B84FF, #6271FF)";
@@ -67,6 +68,9 @@ export default function AuthenticatedLayout({ user, headerContent, children }) {
                     </main>
                 </div>
             </div>
+
+            {/* Flash Messages */}
+            <FlashMessage />
         </>
     );
 }

@@ -40,6 +40,15 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
+    /**
+     * Get all impact reports for this user
+     */
+    public function impactReports()
+    {
+        return $this->hasMany(ImpactReport::class);
+    }
+
+
     protected $hidden = [
         'password',
         'remember_token',

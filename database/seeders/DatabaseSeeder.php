@@ -21,7 +21,9 @@ class DatabaseSeeder extends Seeder
             AdminSeeder::class,
             UserSeeder::class,
             CourseSeeder::class,
-            QuizSeeder::class
+            QuizSeeder::class,
+            MentorSeeder::class,
+            SdgGoalSeeder::class
         ]);
     }
 }

@@ -20,12 +20,6 @@ const userMenuItems = [
         group: "main",
     },
     {
-        name: "Konsultasi Mentor",
-        route: "consult.index",
-        hidden: false,
-        group: "main",
-    },
-    {
         name: "Studio Kreasi",
         route: "studio.index",
         hidden: false,
@@ -41,6 +35,18 @@ const userMenuItems = [
     {
         name: "Analitik Pasar",
         route: "analytics.index",
+        hidden: false,
+        group: "main",
+    },
+    {
+        name: "Pelaporan Dampak",
+        route: "impact-reports.index",
+        hidden: false,
+        group: "main",
+    },
+    {
+        name: "Konsultasi Mentor",
+        route: "mentors.index",
         hidden: false,
         group: "main",
     },

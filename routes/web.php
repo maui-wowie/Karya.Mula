@@ -150,6 +150,12 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('Placeholder', ['title' => 'Analitik Pasar']);
     })->name('analytics.index');
 
+    // IMPACT REPORTING ROUTES
+    Route::get('/pelaporan-dampak', [App\Http\Controllers\ImpactReportController::class, 'index'])->name('impact-reports.index');
+    Route::get('/pelaporan-dampak/create/{sdgGoalId}', [App\Http\Controllers\ImpactReportController::class, 'create'])->name('impact-reports.create');
+    Route::post('/pelaporan-dampak', [App\Http\Controllers\ImpactReportController::class, 'store'])->name('impact-reports.store');
+    Route::get('/pelaporan-dampak/koleksi-lencana', [App\Http\Controllers\ImpactReportController::class, 'myReports'])->name('impact-reports.badges');
+
     // ROUTE PROFILE
     Route::get('/profile-me', [ProfileController::class, 'edit'])->name('profile.me');
     Route::patch('/profile-update', [ProfileController::class, 'update'])->name('profile.update');
@@ -173,6 +179,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // CRUD Users - Resource Route
     Route::resource('users', AdminUserController::class);
 
+
     // Analitik Platform
     Route::get('/analytics', function () {
         return Inertia::render('Admin/Analytics', [
@@ -180,6 +187,19 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         ]);
     })->name('analytics');
 
+});
+
+// MENTOR CONSULTATION ROUTES
+Route::middleware('auth')->group(function () {
+    // Mentor routes
+    Route::get('/konsultasi-mentor', [App\Http\Controllers\MentorController::class, 'index'])->name('mentors.index');
+    Route::get('/konsultasi-mentor/{id}', [App\Http\Controllers\MentorController::class, 'show'])->name('mentors.show');
+    Route::post('/konsultasi-mentor/{id}/book', [App\Http\Controllers\MentorController::class, 'book'])->name('mentors.book');
+    
+    // Consultation schedule routes
+    Route::get('/jadwal-konsultasi', [App\Http\Controllers\ConsultationController::class, 'index'])->name('consultations.index');
+    Route::post('/jadwal-konsultasi/{id}/cancel', [App\Http\Controllers\ConsultationController::class, 'cancel'])->name('consultations.cancel');
+    Route::post('/jadwal-konsultasi/{id}/notes', [App\Http\Controllers\ConsultationController::class, 'addNotes'])->name('consultations.notes');
 });
 
 require __DIR__ . '/auth.php';
