@@ -1,0 +1,185 @@
+<?php
+
+use App\Http\Controllers\Admin\AdminDashboardController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Admin\AdminUserController;
+use App\Http\Controllers\QuizController;
+use App\Http\Controllers\TaskSubmissionController;
+use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
+use App\Models\Course;
+
+// ROOT - REDIRECT KE DASHBOARD (TANPA AUTH)
+Route::get('/', function () {
+    return redirect('/dashboard');
+});
+
+// DASHBOARD ROUTE - BISA DIAKSES TANPA LOGIN
+Route::get('/dashboard', function () {
+    // Jika user sudah login dan admin, redirect ke admin dashboard
+    if (Auth::check() && Auth::user()->isAdmin()) {
+        return redirect()->route('admin.dashboard');
+    }
+
+    // Jika user login
+    if (Auth::check()) {
+        $user = Auth::user();
+
+        // Ambil kursus yang sedang diikuti user
+        $enrolledCourses = $user->courses()
+            ->withPivot(['progress', 'is_completed', 'completed_at'])
+            ->get()
+            ->map(function ($course) {
+                return [
+                    'id' => $course->id,
+                    'title' => $course->title,
+                    'description' => $course->description,
+                    'thumbnail_url' => $course->thumbnail_url,
+                    'mentor_comment' => $course->mentor_comment,
+                    'progress' => $course->pivot->progress ?? 0,
+                    'is_completed' => $course->pivot->is_completed ?? false,
+                    'completed_at' => $course->pivot->completed_at,
+                ];
+            });
+
+        // Ambil kursus yang direkomendasikan (belum diikuti)
+        $enrolledIds = $user->courses()->pluck('courses.id')->toArray();
+        $recommendedCourses = Course::whereNotIn('id', $enrolledIds)
+            ->take(3)
+            ->get();
+
+        return Inertia::render('Dashboard', [
+            'enrolledCourses' => $enrolledCourses,
+            'recommendedCourses' => $recommendedCourses,
+        ]);
+    }
+
+    // Jika user belum login, tampilkan dashboard guest
+    $recommendedCourses = Course::take(3)->get();
+
+    return Inertia::render('Dashboard', [
+        'enrolledCourses' => [],
+        'recommendedCourses' => $recommendedCourses,
+    ]);
+})->name('dashboard');
+
+// KATALOG BELAJAR - BISA DIAKSES TANPA LOGIN
+Route::get('/katalog-belajar', function () {
+    $courses = Course::all();
+    return Inertia::render('Course/KatalogIndex', [
+        'auth' => ['user' => Auth::user()],
+        'courses' => $courses,
+    ]);
+})->name('courses.index');
+
+Route::middleware('auth')->group(function () {
+
+    // ROUTE DETAIL VIDEO (VIDEO TAB) - DINAMIS DARI DATABASE
+    Route::get('/course/{id}/video', function ($id) {
+        $course = Course::findOrFail($id);
+        $nextCourse = Course::where('id', '>', $id)->orderBy('id', 'asc')->first();
+
+        return Inertia::render('Course/VideoDetail', [
+            'course' => $course,
+            'nextCourse' => $nextCourse,
+            'activeTab' => 'video'
+        ]);
+    })->name('course.video');
+
+    Route::get('/course/{id}/quiz', function ($id) {
+        $course = Course::findOrFail($id);
+        $nextCourse = Course::where('id', '>', $id)->orderBy('id', 'asc')->first();
+
+        return Inertia::render('Course/VideoDetail', [
+            'course' => $course,
+            'nextCourse' => $nextCourse,
+            'activeTab' => 'quiz'
+        ]);
+    })->name('course.quiz');
+
+    // QUIZ API ROUTES - Ubah {courseId} jadi {course}
+    Route::prefix('api/course/{courseId}/quiz')->group(function () {
+        Route::get('/', [QuizController::class, 'getQuiz'])->name('api.quiz.get');
+        Route::post('/submit', [QuizController::class, 'submitQuiz'])->name('api.quiz.submit');
+        Route::post('/reset', [QuizController::class, 'resetQuiz'])->name('api.quiz.reset');
+    });
+    // ROUTE TASK TAB
+    Route::get('/course/{id}/task', function ($id) {
+        $course = Course::findOrFail($id);
+        $nextCourse = Course::where('id', '>', $id)->orderBy('id', 'asc')->first();
+
+        return Inertia::render('Course/VideoDetail', [
+            'course' => $course,
+            'nextCourse' => $nextCourse,
+            'activeTab' => 'task'
+        ]);
+    })->name('course.task');
+
+    // TASK SUBMISSION API ROUTES - Tambahkan ini
+    Route::prefix('api/course/{courseId}/task')->group(function () {
+        Route::get('/', [TaskSubmissionController::class, 'getSubmission'])->name('api.task.get');
+        Route::post('/submit', [TaskSubmissionController::class, 'submitTask'])->name('api.task.submit');
+        Route::post('/delete', [TaskSubmissionController::class, 'deleteSubmission'])->name('api.task.delete');
+        Route::get('/download', [TaskSubmissionController::class, 'downloadSubmission'])->name('api.task.download');
+    });
+
+    // ROUTE PLACEHOLDER
+    Route::get('/penilaian-sertifikasi', function () {
+        return Inertia::render('Placeholder', ['title' => 'Penilaian & Sertifikasi']);
+    })->name('assessment.index');
+
+    Route::get('/konsultasi-mentor', function () {
+        return Inertia::render('Placeholder', ['title' => 'Konsultasi Mentor']);
+    })->name('consult.index');
+
+    Route::get('/studio-kreasi', function () {
+        return Inertia::render('Placeholder', ['title' => 'Studio Kreasi']);
+    })->name('studio.index');
+
+    Route::get('/toko-saya', function () {
+        return Inertia::render('Placeholder', ['title' => 'Toko Saya']);
+    })->name('shop.index');
+
+    Route::get('/pendanaan-mikro', function () {
+        return Inertia::render('Placeholder', ['title' => 'Pendanaan Mikro']);
+    })->name('finance.index');
+
+    Route::get('/analitik-pasar', function () {
+        return Inertia::render('Placeholder', ['title' => 'Analitik Pasar']);
+    })->name('analytics.index');
+
+    // ROUTE PROFILE
+    Route::get('/profile-me', [ProfileController::class, 'edit'])->name('profile.me');
+    Route::patch('/profile-update', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile-delete', [ProfileController::class, 'destroy'])->name('profile.destroy');
+});
+
+// ADMIN ROUTES
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+
+    // Dashboard dengan Controller
+    Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+
+    // Manage Courses
+    Route::get('/courses', function () {
+        $courses = Course::latest()->get();
+        return Inertia::render('Admin/Courses/Index', [
+            'courses' => $courses
+        ]);
+    })->name('courses.index');
+
+    // CRUD Users - Resource Route
+    Route::resource('users', AdminUserController::class);
+
+    // Analitik Platform
+    Route::get('/analytics', function () {
+        return Inertia::render('Admin/Analytics', [
+            'title' => 'Analitik Platform'
+        ]);
+    })->name('analytics');
+
+});
+
+require __DIR__ . '/auth.php';
