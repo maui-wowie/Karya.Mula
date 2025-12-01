@@ -1,5 +1,5 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
-import { Head, Link, useForm } from "@inertiajs/react";
+import { Head, Link, useForm, router } from "@inertiajs/react";
 import {
     ArrowLeft,
     Save,
@@ -21,6 +21,8 @@ import {
     ArrowUp,
     ArrowDown,
     Copy,
+    Heart,
+    ArrowRight,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import * as fabric from "fabric";
@@ -38,6 +40,10 @@ export default function Editor({ auth, design }) {
         canvas_data: design?.canvas_data ? JSON.stringify(design.canvas_data) : null,
         thumbnail_url: design?.thumbnail_url || null,
     });
+
+    const [history, setHistory] = useState([]);
+    const [historyStep, setHistoryStep] = useState(-1);
+    const isHistoryProcessing = useRef(false);
 
     // Initialize Canvas
     useEffect(() => {
@@ -65,10 +71,16 @@ export default function Editor({ auth, design }) {
                         await newCanvas.loadFromJSON(canvasData);
                         newCanvas.renderAll();
                         console.log("Canvas loaded successfully");
+                        
+                        // Init history
+                        saveHistory(newCanvas);
                     } catch (error) {
                         console.error("Error loading canvas data:", error);
                         alert("Gagal memuat desain: " + error.message);
                     }
+                } else {
+                    // Init history for new canvas
+                    saveHistory(newCanvas);
                 }
             };
 
@@ -78,12 +90,53 @@ export default function Editor({ auth, design }) {
             newCanvas.on("selection:created", (e) => setSelectedObject(e.selected[0]));
             newCanvas.on("selection:updated", (e) => setSelectedObject(e.selected[0]));
             newCanvas.on("selection:cleared", () => setSelectedObject(null));
+            
+            newCanvas.on("object:modified", () => saveHistory(newCanvas));
+            newCanvas.on("object:added", (e) => {
+                // Avoid saving history when loading from JSON or undo/redo
+                if (!isHistoryProcessing.current) saveHistory(newCanvas);
+            });
+            newCanvas.on("object:removed", () => saveHistory(newCanvas));
 
             return () => {
                 newCanvas.dispose();
             };
         }
     }, [canvasRef]);
+
+    const saveHistory = (cvs) => {
+        if (isHistoryProcessing.current) return;
+        
+        const json = cvs.toJSON();
+        setHistory(prev => {
+            const newHistory = prev.slice(0, historyStep + 1);
+            newHistory.push(json);
+            return newHistory;
+        });
+        setHistoryStep(prev => prev + 1);
+    };
+
+    const undo = async () => {
+        if (historyStep > 0) {
+            isHistoryProcessing.current = true;
+            const newStep = historyStep - 1;
+            setHistoryStep(newStep);
+            await canvas.loadFromJSON(history[newStep]);
+            canvas.renderAll();
+            isHistoryProcessing.current = false;
+        }
+    };
+
+    const redo = async () => {
+        if (historyStep < history.length - 1) {
+            isHistoryProcessing.current = true;
+            const newStep = historyStep + 1;
+            setHistoryStep(newStep);
+            await canvas.loadFromJSON(history[newStep]);
+            canvas.renderAll();
+            isHistoryProcessing.current = false;
+        }
+    };
 
     // Add Text
     const addText = () => {
@@ -191,7 +244,11 @@ export default function Editor({ auth, design }) {
     const handleImageUpload = (e) => {
         const file = e.target.files[0];
         if (!file || !canvas) return;
+        processImageFile(file);
+        e.target.value = null; // Reset input
+    };
 
+    const processImageFile = (file) => {
         const reader = new FileReader();
         reader.onload = async (f) => {
             const data = f.target.result;
@@ -202,12 +259,64 @@ export default function Editor({ auth, design }) {
                 canvas.centerObject(img);
                 canvas.setActiveObject(img);
                 canvas.renderAll();
+                saveHistory(canvas); // Save history on drop
             } catch (error) {
                 console.error("Error loading image:", error);
             }
         };
         reader.readAsDataURL(file);
-        e.target.value = null; // Reset input
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) {
+            processImageFile(file);
+        }
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault();
+    };
+
+    // Add Heart
+    const addHeart = () => {
+        if (!canvas) return;
+        const path = "M 272.70141,238.71731 \
+        C 206.46141,238.71731 152.70146,292.4773 152.70146,358.71731  \
+        C 152.70146,493.47281 288.63461,528.80461 381.26391,662.02535 \
+        C 468.83815,529.62199 609.82641,489.17075 609.82641,358.71731 \
+        C 609.82641,292.47731 556.06651,238.7173 489.82641,238.71731  \
+        C 441.77851,238.71731 400.42481,267.08774 381.26391,307.90481 \
+        C 362.10311,267.08773 320.74941,238.7173 272.70141,238.71731  \
+        z";
+        
+        const heart = new fabric.Path(path, {
+            left: 250,
+            top: 250,
+            fill: '#E91E63',
+            scaleX: 0.2,
+            scaleY: 0.2,
+        });
+        canvas.add(heart);
+        canvas.setActiveObject(heart);
+        canvas.renderAll();
+    };
+
+    // Add Arrow
+    const addArrow = () => {
+        if (!canvas) return;
+        const arrow = new fabric.Path('M 0 0 L 200 0 L 170 -30 M 200 0 L 170 30', {
+            left: 100,
+            top: 100,
+            stroke: '#000000',
+            strokeWidth: 5,
+            fill: 'transparent',
+            objectCaching: false
+        });
+        canvas.add(arrow);
+        canvas.setActiveObject(arrow);
+        canvas.renderAll();
     };
 
     // Delete Object
@@ -256,125 +365,72 @@ export default function Editor({ auth, design }) {
         canvas.renderAll();
     };
 
+    // Force update for React state when Fabric objects change
+    const [, forceUpdate] = useState({});
+
     // Properties Changes
     const handleColorChange = (e) => {
         if (!canvas || !selectedObject) return;
         selectedObject.set("fill", e.target.value);
         canvas.renderAll();
+        forceUpdate({}); // Force React to re-render to update UI
     };
 
     const handleStrokeColorChange = (e) => {
         if (!canvas || !selectedObject) return;
         selectedObject.set("stroke", e.target.value);
         canvas.renderAll();
+        forceUpdate({});
     };
 
     const handleFontSizeChange = (e) => {
         if (!canvas || !selectedObject) return;
         selectedObject.set("fontSize", parseInt(e.target.value));
         canvas.renderAll();
+        forceUpdate({});
     };
 
     const handleOpacityChange = (e) => {
         if (!canvas || !selectedObject) return;
         selectedObject.set("opacity", parseFloat(e.target.value));
         canvas.renderAll();
+        forceUpdate({});
     };
 
     // Save Design
-    // CARA 1: Menggunakan setData (RECOMMENDED)
-const handleSave = () => {
-    if (!canvas) return;
-    
-    const json = canvas.toJSON();
-    const dataUrl = canvas.toDataURL({
-        format: 'png',
-        quality: 0.8,
-        multiplier: 0.5,
-    });
+    const handleSave = () => {
+        if (!canvas) return;
+        
+        const json = canvas.toJSON();
+        const dataUrl = canvas.toDataURL({
+            format: 'png',
+            quality: 0.8,
+            multiplier: 0.5,
+        });
 
-    // Update semua data sekaligus
-    setData({
-        title: designTitle,
-        type: design?.type || "custom",
-        canvas_data: JSON.stringify(json),
-        thumbnail_url: dataUrl,
-    });
+        const payload = {
+            title: designTitle,
+            type: design?.type || "custom",
+            canvas_data: JSON.stringify(json),
+            thumbnail_url: dataUrl,
+        };
 
-    // Submit setelah data diupdate (gunakan setTimeout untuk memastikan state terupdate)
-    setTimeout(() => {
+        const options = {
+            onSuccess: () => {
+                alert("Desain berhasil disimpan!");
+            },
+            onError: (errors) => {
+                console.error("Save failed:", errors);
+                alert("Gagal menyimpan desain: " + JSON.stringify(errors));
+            }
+        };
+
         if (design) {
-            put(route("studio.update", design.id), {
-                onError: (errors) => {
-                    console.error("Save failed:", errors);
-                    alert("Gagal menyimpan desain: " + JSON.stringify(errors));
-                },
-                onSuccess: () => {
-                    alert("Desain berhasil disimpan!");
-                }
-            });
+            router.put(route("studio.update", design.id), payload, options);
         } else {
-            post(route("studio.store"), {
-                onError: (errors) => {
-                    console.error("Save failed:", errors);
-                    alert("Gagal menyimpan desain: " + JSON.stringify(errors));
-                },
-                onSuccess: () => {
-                    alert("Desain berhasil disimpan!");
-                }
-            });
+            router.post(route("studio.store"), payload, options);
         }
-    }, 0);
-};
-
-// CARA 2: Tanpa useForm (ALTERNATIVE - SIMPLER)
-const handleSaveAlt = async () => {
-    if (!canvas) return;
-    
-    const json = canvas.toJSON();
-    const dataUrl = canvas.toDataURL({
-        format: 'png',
-        quality: 0.8,
-        multiplier: 0.5,
-    });
-
-    const payload = {
-        title: designTitle,
-        type: design?.type || "custom",
-        canvas_data: JSON.stringify(json),
-        thumbnail_url: dataUrl,
     };
-
-    try {
-        const response = await fetch(
-            design 
-                ? route("studio.update", design.id)
-                : route("studio.store"),
-            {
-                method: design ? 'PUT' : 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                },
-                body: JSON.stringify(payload)
-            }
-        );
-
-        if (response.ok) {
-            alert("Desain berhasil disimpan!");
-            if (!design) {
-                const result = await response.json();
-                window.location.href = route('studio.edit', result.id);
-            }
-        } else {
-            const error = await response.json();
-            alert("Gagal menyimpan: " + JSON.stringify(error));
-        }
-    } catch (error) {
-        console.error("Save error:", error);
-        alert("Terjadi kesalahan saat menyimpan");
-    }
-};
 
     // Export Image
     const handleExport = () => {
@@ -414,6 +470,24 @@ const handleSaveAlt = async () => {
                         />
                     </div>
                     <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 mr-4 border-r border-gray-200 pr-4">
+                            <button 
+                                onClick={undo} 
+                                disabled={historyStep <= 0}
+                                className="p-2 hover:bg-gray-100 rounded text-gray-600 disabled:opacity-30"
+                                title="Undo"
+                            >
+                                <Undo size={20} />
+                            </button>
+                            <button 
+                                onClick={redo} 
+                                disabled={historyStep >= history.length - 1}
+                                className="p-2 hover:bg-gray-100 rounded text-gray-600 disabled:opacity-30"
+                                title="Redo"
+                            >
+                                <Redo size={20} />
+                            </button>
+                        </div>
                         <button
                             onClick={handleExport}
                             className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium transition-colors"
@@ -422,7 +496,7 @@ const handleSaveAlt = async () => {
                             Export
                         </button>
                         <button
-                            onClick={handleSaveAlt}
+                            onClick={handleSave}
                             disabled={processing}
                             className="flex items-center px-4 py-2 bg-bluey text-white hover:bg-blue-700 rounded-lg font-medium shadow-sm transition-colors disabled:opacity-50"
                         >
@@ -441,6 +515,8 @@ const handleSaveAlt = async () => {
                         <ToolButton icon={<Circle />} label="Lingkaran" onClick={addCircle} />
                         <ToolButton icon={<Triangle />} label="Segitiga" onClick={addTriangle} />
                         <ToolButton icon={<Star />} label="Bintang" onClick={addStar} />
+                        <ToolButton icon={<Heart />} label="Hati" onClick={addHeart} />
+                        <ToolButton icon={<ArrowRight />} label="Panah" onClick={addArrow} />
                         <ToolButton icon={<Minus className="rotate-45" />} label="Garis" onClick={addLine} />
                         
                         <div className="w-12 h-px bg-gray-200 my-1" />
@@ -460,7 +536,11 @@ const handleSaveAlt = async () => {
                     </div>
 
                     {/* Center - Canvas Area */}
-                    <div className="flex-1 bg-gray-200 overflow-auto flex items-center justify-center p-8 relative">
+                    <div 
+                        className="flex-1 bg-gray-200 overflow-auto flex items-center justify-center p-8 relative"
+                        onDrop={handleDrop}
+                        onDragOver={handleDragOver}
+                    >
                         <div className="shadow-2xl bg-white">
                             <canvas ref={canvasRef} />
                         </div>

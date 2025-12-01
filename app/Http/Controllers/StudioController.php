@@ -38,22 +38,27 @@ class StudioController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'type' => 'required|string',
-            'canvas_data' => 'nullable|json',
-            'thumbnail_url' => 'nullable|string',
-        ]);
+        try {
+            $validated = $request->validate([
+                'title' => 'required|string|max:255',
+                'type' => 'required|string',
+                'canvas_data' => 'nullable|json',
+                'thumbnail_url' => 'nullable|string',
+            ]);
 
-        $design = Design::create([
-            'user_id' => Auth::id(),
-            'title' => $validated['title'],
-            'type' => $validated['type'],
-            'canvas_data' => json_decode($validated['canvas_data'], true),
-            'thumbnail_url' => $validated['thumbnail_url'],
-        ]);
+            $design = Design::create([
+                'user_id' => Auth::id(),
+                'title' => $validated['title'],
+                'type' => $validated['type'],
+                'canvas_data' => json_decode($validated['canvas_data'], true),
+                'thumbnail_url' => $validated['thumbnail_url'],
+            ]);
 
-        return redirect()->route('studio.edit', $design->id)->with('success', 'Desain berhasil dibuat!');
+            return redirect()->route('studio.edit', $design->id)->with('success', 'Desain berhasil dibuat!');
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Studio Store Error: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Gagal menyimpan desain. Silakan coba lagi.']);
+        }
     }
 
     public function update(Request $request, Design $design)
@@ -62,19 +67,24 @@ class StudioController extends Controller
             abort(403);
         }
 
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'canvas_data' => 'nullable|json',
-            'thumbnail_url' => 'nullable|string',
-        ]);
+        try {
+            $validated = $request->validate([
+                'title' => 'required|string|max:255',
+                'canvas_data' => 'nullable|json',
+                'thumbnail_url' => 'nullable|string',
+            ]);
 
-        $design->update([
-            'title' => $validated['title'],
-            'canvas_data' => json_decode($validated['canvas_data'], true),
-            'thumbnail_url' => $validated['thumbnail_url'],
-        ]);
+            $design->update([
+                'title' => $validated['title'],
+                'canvas_data' => json_decode($validated['canvas_data'], true),
+                'thumbnail_url' => $validated['thumbnail_url'],
+            ]);
 
-        return back()->with('success', 'Desain berhasil disimpan!');
+            return back()->with('success', 'Desain berhasil disimpan!');
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Studio Update Error: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Gagal menyimpan perubahan. Silakan coba lagi.']);
+        }
     }
 
     public function destroy(Design $design)
