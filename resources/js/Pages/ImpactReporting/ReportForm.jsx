@@ -10,17 +10,18 @@ export default function ReportForm({ auth, sdgGoal }) {
         step_description: "",
         additional_notes: "",
         proof_link: "",
-        action: "save",
+        action: "",
     });
 
     const handleSubmit = (action) => {
         // Set the action first using setData
-        setData('action', action);
-        
-        // Use setTimeout to ensure state is updated before posting
+        // Use a short delay to ensure the state update is flushed
+        // so the server receives the correct `action` value.
+        setData("action", action);
+
         setTimeout(() => {
             post(route("impact-reports.store"));
-        }, 0);
+        }, 50);
     };
 
 
@@ -207,14 +208,7 @@ export default function ReportForm({ auth, sdgGoal }) {
                                 >
                                     Batalkan
                                 </Link>
-                                <button
-                                    type="button"
-                                    onClick={() => handleSubmit("save")}
-                                    disabled={processing}
-                                    className="flex-1 px-6 py-3 bg-green-500 text-white font-semibold rounded-xl hover:bg-green-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {processing ? "Menyimpan..." : "Simpan Draf"}
-                                </button>
+                                {/* Tombol 'Simpan Draf' dihapus sesuai permintaan */}
                                 <button
                                     type="button"
                                     onClick={() => handleSubmit("submit")}

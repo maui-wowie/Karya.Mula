@@ -168,24 +168,16 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Dashboard dengan Controller
     Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
 
-    // Manage Courses
-    Route::get('/courses', function () {
-        $courses = Course::latest()->get();
-        return Inertia::render('Admin/Courses/Index', [
-            'courses' => $courses
-        ]);
-    })->name('courses.index');
+    // Manage Courses - Resource Route
+    Route::resource('courses', \App\Http\Controllers\Admin\AdminCourseController::class);
+    Route::post('/courses/{course}/quizzes', [\App\Http\Controllers\Admin\AdminQuizController::class, 'store'])->name('courses.quizzes.store');
 
     // CRUD Users - Resource Route
     Route::resource('users', AdminUserController::class);
 
 
     // Analitik Platform
-    Route::get('/analytics', function () {
-        return Inertia::render('Admin/Analytics', [
-            'title' => 'Analitik Platform'
-        ]);
-    })->name('analytics');
+    Route::get('/analytics', [\App\Http\Controllers\Admin\AdminAnalyticsController::class, 'index'])->name('analytics');
 
 });
 
