@@ -142,9 +142,15 @@ Route::middleware('auth')->group(function () {
     Route::put('/studio-kreasi/{design}', [App\Http\Controllers\StudioController::class, 'update'])->name('studio.update');
     Route::delete('/studio-kreasi/{design}', [App\Http\Controllers\StudioController::class, 'destroy'])->name('studio.destroy');
 
-    Route::get('/toko-saya', function () {
-        return Inertia::render('Placeholder', ['title' => 'Toko Saya']);
-    })->name('shop.index');
+    // Shop Routes
+    Route::get('/toko-saya', [App\Http\Controllers\ShopController::class, 'index'])->name('shop.index');
+    Route::get('/toko-saya/produk', [App\Http\Controllers\ShopController::class, 'products'])->name('shop.products');
+    Route::post('/toko-saya/produk', [App\Http\Controllers\ShopController::class, 'storeProduct'])->name('shop.products.store');
+    Route::put('/toko-saya/produk/{id}', [App\Http\Controllers\ShopController::class, 'updateProduct'])->name('shop.products.update');
+    Route::delete('/toko-saya/produk/{id}', [App\Http\Controllers\ShopController::class, 'deleteProduct'])->name('shop.products.delete');
+    Route::get('/toko-saya/pesanan', [App\Http\Controllers\ShopController::class, 'orders'])->name('shop.orders');
+    Route::post('/toko-saya/pesanan/{id}/accept', [App\Http\Controllers\ShopController::class, 'acceptOrder'])->name('shop.orders.accept');
+    Route::post('/toko-saya/pesanan/{id}/shipping', [App\Http\Controllers\ShopController::class, 'updateShipping'])->name('shop.orders.shipping');
 
     Route::get('/pendanaan-mikro', function () {
         return Inertia::render('Placeholder', ['title' => 'Pendanaan Mikro']);
