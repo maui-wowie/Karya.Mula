@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
             SdgGoalSeeder::class,
             MentorSeeder::class,
             ShopSeeder::class,
+            StudioTemplateSeeder::class,
         ]);
     }
 }

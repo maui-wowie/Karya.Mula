@@ -15,14 +15,35 @@ class StudioController extends Controller
             ->latest()
             ->get();
 
+        $templates = \App\Models\StudioTemplate::where('is_active', true)
+            ->whereNotNull('thumbnail_url')
+            ->orderBy('order')
+            ->get();
+
         return Inertia::render('Studio/Index', [
             'designs' => $designs,
+            'templates' => $templates,
         ]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
-        return Inertia::render('Studio/Editor');
+        $template = null;
+        $asset = null;
+        
+        if ($request->has('template_id')) {
+            $template = \App\Models\StudioTemplate::find($request->template_id);
+        }
+
+        if ($request->has('asset_id')) {
+            $asset = \App\Models\AssetLibrary::where('user_id', Auth::id())
+                ->find($request->asset_id);
+        }
+
+        return Inertia::render('Studio/Editor', [
+            'template' => $template,
+            'asset' => $asset,
+        ]);
     }
 
     public function edit(Design $design)

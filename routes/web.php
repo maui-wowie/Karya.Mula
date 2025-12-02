@@ -142,6 +142,17 @@ Route::middleware('auth')->group(function () {
     Route::put('/studio-kreasi/{design}', [App\Http\Controllers\StudioController::class, 'update'])->name('studio.update');
     Route::delete('/studio-kreasi/{design}', [App\Http\Controllers\StudioController::class, 'destroy'])->name('studio.destroy');
 
+    // Asset Library Page Route
+    Route::get('/perpustakaan-aset', [App\Http\Controllers\AssetLibraryController::class, 'index'])->name('assets.index');
+
+    // Asset Library API Routes
+    Route::prefix('api/asset-library')->group(function () {
+        Route::post('/', [App\Http\Controllers\AssetLibraryController::class, 'store'])->name('api.assets.store');
+        Route::get('/{asset}', [App\Http\Controllers\AssetLibraryController::class, 'show'])->name('api.assets.show');
+        Route::delete('/{asset}', [App\Http\Controllers\AssetLibraryController::class, 'destroy'])->name('api.assets.destroy');
+    });
+
+
     // Shop Routes
     Route::get('/toko-saya', [App\Http\Controllers\ShopController::class, 'index'])->name('shop.index');
     Route::get('/toko-saya/produk', [App\Http\Controllers\ShopController::class, 'products'])->name('shop.products');

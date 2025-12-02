@@ -1,14 +1,16 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, Link } from "@inertiajs/react";
-import { Plus, Image as ImageIcon, CreditCard, Tag, PenTool } from "lucide-react";
+import { Plus, Image as ImageIcon, CreditCard, Tag, PenTool, Utensils } from "lucide-react";
 
-export default function Index({ auth, designs }) {
-    const templates = [
-        { name: "Logo", icon: <PenTool size={16} />, color: "bg-yellow-100 text-yellow-700" },
-        { name: "Banner Toko", icon: <ImageIcon size={16} />, color: "bg-green-100 text-green-700" },
-        { name: "Kartu Nama", icon: <CreditCard size={16} />, color: "bg-orange-100 text-orange-700" },
-        { name: "Label Kemasan", icon: <Tag size={16} />, color: "bg-purple-100 text-purple-700" },
-    ];
+export default function Index({ auth, designs, templates = [] }) {
+    // Icon mapping for templates
+    const iconMap = {
+        'PenTool': <PenTool size={16} />,
+        'ImageIcon': <ImageIcon size={16} />,
+        'CreditCard': <CreditCard size={16} />,
+        'Tag': <Tag size={16} />,
+        'Utensils': <Utensils size={16} />,
+    };
 
     return (
         <AuthenticatedLayout
@@ -27,9 +29,9 @@ export default function Index({ auth, designs }) {
                     <div className="relative overflow-hidden rounded-2xl bg-gray-900 text-white mb-10 shadow-xl">
                         <div className="absolute inset-0">
                             <img 
-                                src="https://images.unsplash.com/photo-1626785774573-4b7993143a26?q=80&w=2070&auto=format&fit=crop" 
+                                src="/images/studioBG.png" 
                                 alt="Studio Background" 
-                                className="h-full w-full object-cover opacity-40"
+                                className="h-full w-full object-cover "
                             />
                             <div className="absolute inset-0 bg-gradient-to-r from-black/80 to-transparent" />
                         </div>
@@ -42,25 +44,54 @@ export default function Index({ auth, designs }) {
                             </p>
                             <Link
                                 href={route("studio.create")}
-                                className="inline-flex items-center px-6 py-3 bg-white text-gray-900 font-bold rounded-lg hover:bg-gray-100 transition-colors shadow-lg"
+                                className="inline-flex items-center px-6 py-3 bg-white text-gray-900 font-bold rounded-lg hover:bg-gray-100 transition-colors shadow-lg mr-4"
                             >
                                 <Plus className="mr-2" size={20} />
                                 Buat Desain Baru
+                            </Link>
+                            <Link
+                                href={route("assets.index")}
+                                className="inline-flex items-center px-6 py-3 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-700 transition-colors shadow-lg"
+                            >
+                                <ImageIcon className="mr-2" size={20} />
+                                Perpustakaan Aset
                             </Link>
                         </div>
                     </div>
 
                     {/* Templates */}
-                    <div className="flex flex-wrap gap-4 mb-12">
-                        {templates.map((template, index) => (
-                            <button
-                                key={index}
-                                className={`flex items-center px-4 py-2 rounded-lg font-medium transition-transform hover:scale-105 ${template.color}`}
-                            >
-                                <span className="mr-2">{template.icon}</span>
-                                {template.name}
-                            </button>
-                        ))}
+                    <div className="mb-12">
+                        <h3 className="text-2xl font-bold text-bluey mb-6">
+                            Template Desain ({templates.length} templates)
+                        </h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                            {templates.map((template) => (
+                                <Link
+                                    key={template.id}
+                                    href={route("studio.create", { template_id: template.id })}
+                                    className="group bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100 overflow-hidden flex flex-col h-full"
+                                >
+                                    <div className={`aspect-square ${template.thumbnail_url ? 'bg-white' : template.color.split(' ')[0]} flex items-center justify-center p-4 relative overflow-hidden`}>
+                                        {template.thumbnail_url ? (
+                                            <img 
+                                                src={template.thumbnail_url} 
+                                                alt={template.name} 
+                                                className="w-full h-full object-contain transition-transform group-hover:scale-105"
+                                            />
+                                        ) : (
+                                            <div className={`w-16 h-16 rounded-full bg-white/50 flex items-center justify-center ${template.color.split(' ')[1]}`}>
+                                                {iconMap[template.icon] || <PenTool size={32} />}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="p-4 text-center">
+                                        <h4 className="font-bold text-gray-900 truncate">
+                                            {template.name}
+                                        </h4>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
                     </div>
 
                     {/* Recent Designs */}

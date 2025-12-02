@@ -27,18 +27,20 @@ import {
 import { useEffect, useRef, useState } from "react";
 import * as fabric from "fabric";
 
-export default function Editor({ auth, design }) {
+export default function Editor({ auth, design, template, asset }) {
     const canvasRef = useRef(null);
     const fileInputRef = useRef(null);
     const [canvas, setCanvas] = useState(null);
     const [selectedObject, setSelectedObject] = useState(null);
-    const [designTitle, setDesignTitle] = useState(design?.title || "Desain Baru");
+    
+    const initialData = design || template || asset;
+    const [designTitle, setDesignTitle] = useState(initialData?.title || initialData?.name || "Desain Baru");
     
     const { data, setData, post, put, processing } = useForm({
         title: designTitle,
-        type: design?.type || "custom",
-        canvas_data: design?.canvas_data ? JSON.stringify(design.canvas_data) : null,
-        thumbnail_url: design?.thumbnail_url || null,
+        type: design?.type || "custom", // Keep type logic specific to saved designs if needed
+        canvas_data: initialData?.canvas_data ? JSON.stringify(initialData.canvas_data) : null,
+        thumbnail_url: initialData?.thumbnail_url || null,
     });
 
     const [history, setHistory] = useState([]);
@@ -60,17 +62,25 @@ export default function Editor({ auth, design }) {
 
             // Load existing design if available
             const loadCanvas = async () => {
-                if (design?.canvas_data) {
+                const dataToLoad = design || template || asset;
+                console.log("Loading data from:", { design, template, asset }); // Debug
+                console.log("Data to load:", dataToLoad); // Debug
+                
+                // Check for both canvas_data (from design/template) and asset_data (from asset library)
+                const canvasDataRaw = dataToLoad?.canvas_data || dataToLoad?.asset_data;
+                
+                if (canvasDataRaw) {
                     try {
                         // Handle both string and object formats for safety
-                        const canvasData = typeof design.canvas_data === 'string' 
-                            ? JSON.parse(design.canvas_data) 
-                            : design.canvas_data;
+                        const canvasData = typeof canvasDataRaw === 'string' 
+                            ? JSON.parse(canvasDataRaw) 
+                            : canvasDataRaw;
 
                         console.log("Loading canvas data...", canvasData);
                         await newCanvas.loadFromJSON(canvasData);
                         newCanvas.renderAll();
                         console.log("Canvas loaded successfully");
+                        console.log("Canvas objects:", newCanvas.getObjects()); // Debug
                         
                         // Init history
                         saveHistory(newCanvas);
@@ -79,6 +89,7 @@ export default function Editor({ auth, design }) {
                         alert("Gagal memuat desain: " + error.message);
                     }
                 } else {
+                    console.log("No canvas data to load"); // Debug
                     // Init history for new canvas
                     saveHistory(newCanvas);
                 }
@@ -432,6 +443,40 @@ export default function Editor({ auth, design }) {
         }
     };
 
+    // Save to Asset Library
+    const handleSaveToLibrary = () => {
+        if (!canvas) return;
+        
+        const assetName = prompt("Nama asset:", designTitle || "Asset Baru");
+        if (!assetName) return;
+
+        const json = canvas.toJSON();
+        const dataUrl = canvas.toDataURL({
+            format: 'png',
+            quality: 0.8,
+            multiplier: 0.5,
+        });
+
+        const payload = {
+            name: assetName,
+            asset_data: json, // Send as object, Laravel will handle JSON encoding
+            thumbnail_url: dataUrl,
+            type: 'design',
+        };
+
+        console.log("Saving asset with data:", json); // Debug log
+
+        router.post(route("api.assets.store"), payload, {
+            onSuccess: () => {
+                alert("Asset berhasil disimpan ke perpustakaan!");
+            },
+            onError: (errors) => {
+                console.error("Save to library failed:", errors);
+                alert("Gagal menyimpan asset: " + JSON.stringify(errors));
+            }
+        });
+    };
+
     // Export Image
     const handleExport = () => {
         if (!canvas) return;
@@ -494,6 +539,13 @@ export default function Editor({ auth, design }) {
                         >
                             <Download size={18} className="mr-2" />
                             Export
+                        </button>
+                        <button
+                            onClick={handleSaveToLibrary}
+                            className="flex items-center px-4 py-2 text-purple-700 hover:bg-purple-50 rounded-lg font-medium transition-colors border border-purple-300"
+                        >
+                            <Layers size={18} className="mr-2" />
+                            Simpan ke Perpustakaan
                         </button>
                         <button
                             onClick={handleSave}
